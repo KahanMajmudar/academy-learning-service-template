@@ -11,6 +11,9 @@ fi
 # Push packages and fetch service
 make clean
 
+# Ensure hashes are updated
+autonomy packages lock
+
 autonomy push-all
 
 autonomy fetch --local --service valory/learning_service && cd learning_service

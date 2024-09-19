@@ -19,6 +19,7 @@
 
 """This package contains round behaviours of LearningAbciApp."""
 
+import json
 from abc import ABC
 from typing import Generator, Set, Type, cast
 
@@ -93,9 +94,24 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
     def get_price(self):
         """Get token price from Coingecko"""
         # Interact with Coingecko's API
-        # result = yield from self.get_http_response("coingecko.com")
-        yield
-        price = 1.0
+        request_template = self.params.coingecko_price_template
+        token = "starknet"
+        # replace token name
+        url = request_template.replace("autonolas", token)
+        # replace placeholder of {api_key} with the env value
+        url = url.replace("{api_key}", self.params.coingecko_api_key)
+
+        result = yield from self.get_http_response(method="GET", url=url)
+
+        if result.status_code != 200:
+            self.context.logger.error(
+                f"Error while fetching coingecko API. Status Code: {result.status_code}, Status Text: {result.status_text}"
+            )
+            return None
+
+        result_str = result.body.decode("utf-8")
+        data = json.loads(result_str)
+        price = data[token]["usd"]
         self.context.logger.info(f"Price is {price}")
         return price
 
@@ -133,7 +149,14 @@ class DecisionMakingBehaviour(
     def get_event(self):
         """Get the next event"""
         # Using the token price from the previous round, decide whether we should make a transfer or not
-        event = Event.DONE.value
+        # using dummy decision making condition
+        if self.synchronized_data.price > 0.3:
+            event = Event.DONE.value
+            self.context.logger.info(f"Threshold not reached, moving to {event}")
+        else:
+            event = Event.TRANSACT.value
+            self.context.logger.info(f"Threshold reached, moving to {event}")
+
         self.context.logger.info(f"Event is {event}")
         return event
 
