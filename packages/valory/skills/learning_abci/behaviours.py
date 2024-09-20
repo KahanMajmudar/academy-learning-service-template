@@ -23,6 +23,13 @@ import json
 from abc import ABC
 from typing import Generator, Set, Type, cast
 
+from packages.valory.contracts.erc20.contract import ERC20
+from packages.valory.contracts.gnosis_safe.contract import GnosisSafeContract
+from packages.valory.protocols.contract_api import ContractApiMessage
+from packages.valory.skills.transaction_settlement_abci.payload_tools import (
+    hash_payload_to_hex,
+)
+
 from packages.valory.skills.abstract_round_abci.base import AbstractRound
 from packages.valory.skills.abstract_round_abci.behaviours import (
     AbstractRoundBehaviour,
@@ -50,6 +57,7 @@ TX_DATA = b"0x"
 SAFE_GAS = 0
 VALUE_KEY = "value"
 TO_ADDRESS_KEY = "to_address"
+ETHER_VALUE = 10**18
 
 
 class LearningBaseBehaviour(BaseBehaviour, ABC):  # pylint: disable=too-many-ancestors
@@ -118,11 +126,33 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
     def get_balance(self):
         """Get balance"""
         # Use the contract api to interact with the ERC20 contract
-        # result = yield from self.get_contract_api_response()
-        yield
-        balance = 1.0
-        self.context.logger.info(f"Balance is {balance}")
-        return balance
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.token_contract_address,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="check_balance",
+            account=self.synchronized_data.safe_contract_address,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Could not calculate the balance of the safe: {response_msg}"
+            )
+            return False
+
+        # fetching wallet balance of xDAI, token decimal is 18
+        native_balance = (
+            response_msg.raw_transaction.body.get("wallet", None)
+        ) / 10**18
+        # fetching token balance of wBTC, token decimal is 8
+        token_balance = (response_msg.raw_transaction.body.get("token", None)) / 10**8
+
+        self.context.logger.info(
+            f"xDAI Balance is {native_balance}, wBTC balance is {token_balance}"
+        )
+
+        return token_balance
 
 
 class DecisionMakingBehaviour(
@@ -174,8 +204,15 @@ class TxPreparationBehaviour(
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
             sender = self.context.agent_address
             tx_hash = yield from self.get_tx_hash()
+            tx_hash_payload = hash_payload_to_hex(
+                safe_tx_hash=tx_hash,
+                ether_value=ETHER_VALUE,
+                safe_tx_gas=SAFE_GAS,
+                to_address=self.params.transfer_target_address,
+                data=TX_DATA,
+            )
             payload = TxPreparationPayload(
-                sender=sender, tx_submitter=None, tx_hash=tx_hash
+                sender=sender, tx_submitter=None, tx_hash=tx_hash_payload
             )
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
@@ -186,9 +223,29 @@ class TxPreparationBehaviour(
 
     def get_tx_hash(self):
         """Get the tx hash"""
-        # We need to prepare a 1 wei transfer from the safe to another (configurable) account.
-        yield
-        tx_hash = None
+        # We need to prepare a 10**18 wei transfer from the safe to another (configurable) account.
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE,  # type: ignore
+            contract_address=self.synchronized_data.safe_contract_address,
+            contract_id=str(GnosisSafeContract.contract_id),
+            contract_callable="get_raw_safe_transaction_hash",
+            to_address=self.params.transfer_target_address,
+            value=ETHER_VALUE,
+            data=TX_DATA,
+            safe_tx_gas=SAFE_GAS,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if response_msg.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"Could not get safe hash. "
+                f"Expected: {ContractApiMessage.Performative.STATE.value}, "
+                f"Actual: {response_msg.performative.value}"
+            )
+            return None
+
+        tx_hash_data = cast(str, response_msg.state.body["tx_hash"])
+        tx_hash = tx_hash_data[2:]
         self.context.logger.info(f"Transaction hash is {tx_hash}")
         return tx_hash
 
