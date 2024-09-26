@@ -31,8 +31,8 @@ protocols:
 skills:
 - valory/abstract_abci:0.1.0:bafybeihu2bcgjk2tqjiq2zhk3uogtfszqn4osvdt7ho3fubdpdj4jgdfjm
 - valory/abstract_round_abci:0.1.0:bafybeibovsktd3uxur45nrcomq5shcn46cgxd5idmhxbmjhg32c5abyqim
-- valory/learning_abci:0.1.0:bafybeigc6rg3rrovjzs2vonaae7rme7ss74yun3anlqiyv2vswvzo4qmtu
-- valory/learning_chained_abci:0.1.0:bafybeie7i6scf3irspqn5ama6p6mm5gxio7dy7hcm2qpjq3vjolaw2ouum
+- valory/learning_abci:0.1.0:bafybeifdzk2uhntvvk5gymler7wi4cmnlcpedauoyw44pnmvsr5zovvmbi
+- valory/learning_chained_abci:0.1.0:bafybeibm7lup7qzs3iuzbe24mbdsn2b26bnxryiizkaasexxniqc5ko2gm
 - valory/registration_abci:0.1.0:bafybeicnth5q4httefsusywx3zrrq4al47owvge72dqf2fziruicq6hqta
 - valory/reset_pause_abci:0.1.0:bafybeievjciqdvxhqxfjd4whqs27h6qbxqzrae7wwj7fpvxlvmtw3x35im
 - valory/termination_abci:0.1.0:bafybeid54buqxipiuduw7b6nnliiwsxajnltseuroad53wukfonpxca2om
@@ -189,3 +189,4 @@ models:
       termination_from_block: ${int:34088325}
       transfer_target_address: ${str:0x615d3278680337e2D39C3bc5042D959C7938B917}
       token_contract_address: ${str:null}
+      multisend_contract_address: ${MUTLISEND_CONTRACT_ADDRESS:str:null}

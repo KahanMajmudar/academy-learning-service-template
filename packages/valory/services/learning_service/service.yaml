@@ -7,7 +7,7 @@ license: Apache-2.0
 fingerprint:
   README.md: bafybeid42pdrf6qrohedylj4ijrss236ai6geqgf3he44huowiuf7pl464
 fingerprint_ignore_patterns: []
-agent: valory/learning_agent:0.1.0:bafybeicgxybl2n4qyj56gqgo3muringc5rknzbk7xc3ml5lgyu25ya5yeq
+agent: valory/learning_agent:0.1.0:bafybeie3txcq5ueogqoywn353un4ar3oq5bm57teyhnnlfkuv556tyspoq
 number_of_agents: 4
 deployment:
   agent:
@@ -94,6 +94,7 @@ extra:
         coingecko_api_key: ${COINGECKO_API_KEY:str:null}
         transfer_target_address: ${TRANSFER_TARGET_ADDRESS:str:0x615d3278680337e2D39C3bc5042D959C7938B917}
         token_contract_address: ${TOKEN_CONTRACT_ADDRESS:str:null}
+        multisend_contract_address: ${MUTLISEND_CONTRACT_ADDRESS:str:null}
 1:
   models:
     benchmark_tool:
@@ -141,6 +142,7 @@ extra:
         coingecko_api_key: ${COINGECKO_API_KEY:str:null}
         transfer_target_address: ${TRANSFER_TARGET_ADDRESS:str:0x615d3278680337e2D39C3bc5042D959C7938B917}
         token_contract_address: ${TOKEN_CONTRACT_ADDRESS:str:null}
+        multisend_contract_address: ${MUTLISEND_CONTRACT_ADDRESS:str:null}
 2:
   models:
     benchmark_tool:
@@ -188,6 +190,7 @@ extra:
         coingecko_api_key: ${COINGECKO_API_KEY:str:null}
         transfer_target_address: ${TRANSFER_TARGET_ADDRESS:str:0x615d3278680337e2D39C3bc5042D959C7938B917}
         token_contract_address: ${TOKEN_CONTRACT_ADDRESS:str:null}
+        multisend_contract_address: ${MUTLISEND_CONTRACT_ADDRESS:str:null}
 3:
   models:
     benchmark_tool:

@@ -7,18 +7,19 @@ license: Apache-2.0
 aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
   __init__.py: bafybeiho3lkochqpmes4f235chq26oggmwnol3vjuvhosleoubbjirbwaq
-  behaviours.py: bafybeifa6567hwdidfvyvketdhg3lvhagrnwaq2daccfqdyzfpyyyslmgq
+  behaviours.py: bafybeighpgzj5r6kvsnblktxfftm4qqjdnk36uxbppjeahuh5udmwyypdm
   dialogues.py: bafybeifqjbumctlffx2xvpga2kcenezhe47qhksvgmaylyp5ypwqgfar5u
   fsm_specification.yaml: bafybeicxvornc7gpvpotob6z46fl7qmataxydn22fr22qnb4ausfg6vppe
   handlers.py: bafybeigjadr4thz6hfpfx5abezbwnqhbxmachf4efasrn4z2vqhsqgnyvi
-  models.py: bafybeigmph6cu5ducgyozapqcirct6gwzttvejgz5r4h6ls2pmuuwwsws4
+  models.py: bafybeihw4yeyrn7fvufpv4dhlwiurpnb55ywb7v77ylmchqke32q5jvvde
   payloads.py: bafybeicfc54bmgft2nlwpykcxaqvrbjrhcdkdck2xt2kyou6u6lczoorfu
   rounds.py: bafybeif73latxgwatmslh34mrt3hgs762bhcusf4dyilxigqxwfmoou3dm
 fingerprint_ignore_patterns: []
 connections: []
 contracts:
-- valory/erc20:0.1.0:bafybeiel24epwfr5nsk5xt2dfdimrzhrqchjxdeeh6wpm6nz35w6po6osa
+- valory/erc20:0.1.0:bafybeicb2odihtfsk3svvnaxpx56hpg7an7njf75oapvppoqybvdgk62ou
 - valory/gnosis_safe:0.1.0:bafybeiho6sbfts3zk3mftrngw37d5qnlvkqtnttt3fzexmcwkeevhu4wwi
+- valory/multisend:0.1.0:bafybeig5byt5urg2d2bsecufxe5ql7f4mezg3mekfleeh32nmuusx66p4y
 protocols:
 - valory/contract_api:1.0.0:bafybeidgu7o5llh26xp3u3ebq3yluull5lupiyeu6iooi2xyymdrgnzq5i
 skills:
@@ -128,6 +129,7 @@ models:
       coingecko_api_key: ${COINGECKO_API_KEY:str:null}
       transfer_target_address: '0x0000000000000000000000000000000000000000'
       token_contract_address: ${TOKEN_CONTRACT_ADDRESS:str:null}
+      multisend_contract_address: ${MULTISEND_CONTRACT_ADDRESS:str:null}
     class_name: Params
   requests:
     args: {}
