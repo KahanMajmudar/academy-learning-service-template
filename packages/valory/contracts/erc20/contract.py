@@ -19,7 +19,7 @@
 
 """This module contains the class to connect to an ERC20 token contract."""
 
-from typing import Dict
+from typing import Any, Dict
 
 from aea.common import JSONLike
 from aea.configurations.base import PublicId
@@ -98,4 +98,21 @@ class ERC20(Contract):
         contract_instance = cls.get_instance(ledger_api, contract_address)
         checksumed_spender = ledger_api.api.to_checksum_address(spender)
         data = contract_instance.encodeABI("approve", args=(checksumed_spender, amount))
+        return {"data": bytes.fromhex(data[2:])}
+
+    @classmethod
+    def build_transfer_tx(
+        cls,
+        ledger_api: LedgerApi,
+        contract_address: str,
+        receiver: str,
+        amount: int,
+        **tx_args: Any,
+    ) -> Dict[str, bytes]:
+        """Build an Transfer transaction."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        checksumed_receiver = ledger_api.api.to_checksum_address(receiver)
+        data = contract_instance.encodeABI(
+            "transfer", args=(checksumed_receiver, amount)
+        )
         return {"data": bytes.fromhex(data[2:])}

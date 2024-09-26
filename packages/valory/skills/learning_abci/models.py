@@ -57,4 +57,7 @@ class Params(BaseParams):
         self.token_contract_address = self._ensure(
             "token_contract_address", kwargs, str
         )
+        self.multisend_contract_address = self._ensure(
+            "multisend_contract_address", kwargs, str
+        )
         super().__init__(*args, **kwargs)

@@ -22,7 +22,7 @@ skills:
 - valory/registration_abci:0.1.0:bafybeicnth5q4httefsusywx3zrrq4al47owvge72dqf2fziruicq6hqta
 - valory/reset_pause_abci:0.1.0:bafybeievjciqdvxhqxfjd4whqs27h6qbxqzrae7wwj7fpvxlvmtw3x35im
 - valory/termination_abci:0.1.0:bafybeid54buqxipiuduw7b6nnliiwsxajnltseuroad53wukfonpxca2om
-- valory/learning_abci:0.1.0:bafybeigc6rg3rrovjzs2vonaae7rme7ss74yun3anlqiyv2vswvzo4qmtu
+- valory/learning_abci:0.1.0:bafybeifdzk2uhntvvk5gymler7wi4cmnlcpedauoyw44pnmvsr5zovvmbi
 - valory/transaction_settlement_abci:0.1.0:bafybeihq2yenstblmaadzcjousowj5kfn5l7ns5pxweq2gcrsczfyq5wzm
 behaviours:
   main:
@@ -139,6 +139,7 @@ models:
       default_chain_id: gnosis
       transfer_target_address: '0x0000000000000000000000000000000000000000'
       token_contract_address: '0x0000000000000000000000000000000000000000'
+      multisend_contract_address: '0x0000000000000000000000000000000000000000'
     class_name: Params
   randomness_api:
     args:

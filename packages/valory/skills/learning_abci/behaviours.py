@@ -22,9 +22,17 @@
 import json
 from abc import ABC
 from typing import Generator, Set, Type, cast
+from hexbytes import HexBytes
 
 from packages.valory.contracts.erc20.contract import ERC20
-from packages.valory.contracts.gnosis_safe.contract import GnosisSafeContract
+from packages.valory.contracts.gnosis_safe.contract import (
+    GnosisSafeContract,
+    SafeOperation,
+)
+from packages.valory.contracts.multisend.contract import (
+    MultiSendContract,
+    MultiSendOperation,
+)
 from packages.valory.protocols.contract_api import ContractApiMessage
 from packages.valory.skills.transaction_settlement_abci.payload_tools import (
     hash_payload_to_hex,
@@ -180,7 +188,7 @@ class DecisionMakingBehaviour(
         """Get the next event"""
         # Using the token price from the previous round, decide whether we should make a transfer or not
         # using dummy decision making condition
-        if self.synchronized_data.price > 0.3:
+        if self.synchronized_data.price < 0.5:
             event = Event.DONE.value
             self.context.logger.info(f"Threshold not reached, moving to {event}")
         else:
@@ -202,15 +210,74 @@ class TxPreparationBehaviour(
         """Do the act, supporting asynchronous execution."""
 
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            multi_send_txs = []
+
             sender = self.context.agent_address
-            tx_hash = yield from self.get_tx_hash()
-            tx_hash_payload = hash_payload_to_hex(
-                safe_tx_hash=tx_hash,
-                ether_value=ETHER_VALUE,
-                safe_tx_gas=SAFE_GAS,
-                to_address=self.params.transfer_target_address,
-                data=TX_DATA,
+            native_transfer_data = yield from self.get_native_transfer_tx_data()
+            multi_send_txs.append(native_transfer_data)
+            token_transfer_data = yield from self.get_token_transfer_tx_data()
+            multi_send_txs.append(token_transfer_data)
+
+            self.context.logger.info(f"multisend txs: {multi_send_txs}")
+
+            contract_api_msg = yield from self.get_contract_api_response(
+                performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+                contract_address=self.params.multisend_contract_address,
+                contract_id=str(MultiSendContract.contract_id),
+                contract_callable="get_tx_data",
+                multi_send_txs=multi_send_txs,
+                chain_id=GNOSIS_CHAIN_ID,
             )
+
+            if (
+                contract_api_msg.performative
+                != ContractApiMessage.Performative.RAW_TRANSACTION
+            ):
+                self.context.logger.error(
+                    f"Could not get Multisend tx hash. "
+                    f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION.value}, "
+                    f"Actual: {contract_api_msg.performative.value}"
+                )
+                return None
+
+            multisend_data = cast(str, contract_api_msg.raw_transaction.body["data"])
+            multisend_data = multisend_data[2:]
+            self.context.logger.info(f"Multisend data: {multisend_data}")
+
+            contract_api_msg = yield from self.get_contract_api_response(
+                performative=ContractApiMessage.Performative.GET_STATE,  # type: ignore
+                contract_address=self.synchronized_data.safe_contract_address,
+                contract_id=str(GnosisSafeContract.contract_id),
+                contract_callable="get_raw_safe_transaction_hash",
+                to_address=self.params.multisend_contract_address,
+                value=sum(tx["value"] for tx in multi_send_txs),
+                data=bytes.fromhex(multisend_data),
+                operation=SafeOperation.DELEGATE_CALL.value,
+                safe_tx_gas=SAFE_GAS,
+                chain_id=GNOSIS_CHAIN_ID,
+            )
+
+            if contract_api_msg.performative != ContractApiMessage.Performative.STATE:
+                self.context.logger.error(
+                    f"Could not get Multisend Gnosis Safe tx hash. "
+                    f"Expected: {ContractApiMessage.Performative.STATE.value}, "
+                    f"Actual: {contract_api_msg.performative.value}"
+                )
+                return None
+
+            safe_tx_hash = cast(str, contract_api_msg.state.body["tx_hash"])
+            safe_tx_hash = safe_tx_hash[2:]
+            self.context.logger.info(f"Hash of the Safe transaction: {safe_tx_hash}")
+
+            tx_hash_payload = hash_payload_to_hex(
+                safe_tx_hash=safe_tx_hash,
+                ether_value=sum(tx["value"] for tx in multi_send_txs),
+                safe_tx_gas=SAFE_GAS,
+                to_address=self.params.multisend_contract_address,
+                data=bytes.fromhex(multisend_data),
+                operation=SafeOperation.DELEGATE_CALL.value,
+            )
+            self.context.logger.info(f"Final tx payload is: {tx_hash_payload}")
             payload = TxPreparationPayload(
                 sender=sender, tx_submitter=None, tx_hash=tx_hash_payload
             )
@@ -221,11 +288,16 @@ class TxPreparationBehaviour(
 
         self.set_done()
 
-    def get_tx_hash(self):
-        """Get the tx hash"""
+        # Sample transaction
+        # https://dashboard.tenderly.co/explorer/vnet/c0c35487-a16b-44e8-baed-5a93cda21761/tx/0x119d12467e2769d6e632056750c307af9fa79211689a4dc737b4e610dc491d69
+
+    def get_native_transfer_tx_data(self):
+        """Get the tx data"""
+        self.context.logger.info(f"Inside function call: Native transfer")
+
         # We need to prepare a 10**18 wei transfer from the safe to another (configurable) account.
         response_msg = yield from self.get_contract_api_response(
-            performative=ContractApiMessage.Performative.GET_STATE,  # type: ignore
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
             contract_address=self.synchronized_data.safe_contract_address,
             contract_id=str(GnosisSafeContract.contract_id),
             contract_callable="get_raw_safe_transaction_hash",
@@ -236,18 +308,65 @@ class TxPreparationBehaviour(
             chain_id=GNOSIS_CHAIN_ID,
         )
 
-        if response_msg.performative != ContractApiMessage.Performative.STATE:
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
             self.context.logger.error(
-                f"Could not get safe hash. "
-                f"Expected: {ContractApiMessage.Performative.STATE.value}, "
+                f"Could not get native transfer hash. "
+                f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION.value}, "
                 f"Actual: {response_msg.performative.value}"
             )
             return None
 
-        tx_hash_data = cast(str, response_msg.state.body["tx_hash"])
-        tx_hash = tx_hash_data[2:]
-        self.context.logger.info(f"Transaction hash is {tx_hash}")
-        return tx_hash
+        self.context.logger.info(f"Native transfer response msg is {response_msg}")
+
+        tx_hash_data = cast(str, response_msg.raw_transaction.body["tx_hash"])
+        self.context.logger.info(f"Transaction hash data is {tx_hash_data}")
+        self.context.logger.info(
+            f"Native transfer Transaction hash data is {tx_hash_data}"
+        )
+        return {
+            "operation": MultiSendOperation.CALL,
+            "to": self.params.transfer_target_address,
+            "value": ETHER_VALUE,
+            "data": tx_hash_data,
+        }
+
+    def get_token_transfer_tx_data(self):
+        """Get the tx data"""
+        self.context.logger.info(f"Inside function call: Token transfer")
+
+        # We need to prepare a 1 token transfer from the safe to another (configurable) account.
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.token_contract_address,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="build_transfer_tx",
+            receiver=self.params.transfer_target_address,
+            amount=10**8,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        self.context.logger.info(f"Token transfer response msg is {response_msg}")
+
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Could not get token transfer hash. "
+                f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION.value}, "
+                f"Actual: {response_msg.performative.value}"
+            )
+            return None
+
+        tx_hash_data = HexBytes(
+            cast(bytes, response_msg.raw_transaction.body["data"]).hex()
+        )
+        self.context.logger.info(
+            f"Token transfer Transaction hash data is {tx_hash_data}"
+        )
+        return {
+            "operation": MultiSendOperation.CALL,
+            "to": self.params.token_contract_address,
+            "value": 0,
+            "data": tx_hash_data,
+        }
 
 
 class LearningRoundBehaviour(AbstractRoundBehaviour):

@@ -66,6 +66,11 @@ def main() -> None:
                 "transfer_target_address"
             ] = f"${{str:{os.getenv('TRANSFER_TARGET_ADDRESS')}}}"  # type: ignore
 
+        if os.getenv("MULTISEND_CONTRACT_ADDRESS"):
+            config[-1]["models"]["params"]["args"][
+                "multisend_contract_address"
+            ] = f"${{str:{os.getenv('MULTISEND_CONTRACT_ADDRESS')}}}"  # type: ignore
+
     with open(Path("learning_agent", "aea-config.yaml"), "w", encoding="utf-8") as file:
         yaml.dump_all(config, file, sort_keys=False)
 
